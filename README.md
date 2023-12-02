@@ -2,6 +2,10 @@
 
 ROS 2 Navigation bemutatása a Robotirányítás rendszertechnikája gyakorlat keretében.
 
+Oprendszer és ROS verzió: Ubuntu 22.04, ROS 2 Humble
+
+## Demo
+
 1. Turtlebot3 szimuláció elindítása, robot távirányítása billentyűzetről
    ```
    ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
@@ -28,7 +32,7 @@ ROS 2 Navigation bemutatása a Robotirányítás rendszertechnikája gyakorlat k
 
 3. Navigáció bemutatása
    ```
-   ros2 launch nav2_demo tb3_nav_sim_launch.py
+   ros2 launch nav2-demo tb3_nav_sim_launch.py
    ```
    - Milyen node-okat látunk?
      - gazebo (ez szimulálja a robotot)
