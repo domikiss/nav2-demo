@@ -66,6 +66,7 @@ ROS 2 Navigation bemutatása a Robotirányítás rendszertechnikája gyakorlat k
 
 [The Robotics Back-End: ROS2 Nav2 Tutorial](https://roboticsbackend.com/ros2-nav2-tutorial/)
 
+(A fenti tutorial-okban leírt telepítéseket el kell végezni, hogy működjenek a leírt lépések.)
 
 ## Hasznos parancsok
 
