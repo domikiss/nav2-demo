@@ -19,18 +19,15 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
-from launch_ros.actions import Node
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
     # Get the launch directory
     bringup_dir = get_package_share_directory('nav2_bringup')
     local_dir = get_package_share_directory('nav2-demo')
-    launch_dir = os.path.join(bringup_dir, 'launch')
 
     # Create the launch configuration variables
     slam = LaunchConfiguration('slam')
@@ -49,24 +46,10 @@ def generate_launch_description():
     use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
     use_rviz = LaunchConfiguration('use_rviz')
     headless = LaunchConfiguration('headless')
-    world = LaunchConfiguration('world')
-    pose = {'x': LaunchConfiguration('x_pose', default='-2.00'),
-            'y': LaunchConfiguration('y_pose', default='-0.50'),
-            'z': LaunchConfiguration('z_pose', default='0.01'),
-            'R': LaunchConfiguration('roll', default='0.00'),
-            'P': LaunchConfiguration('pitch', default='0.00'),
-            'Y': LaunchConfiguration('yaw', default='0.00')}
+    world_file = LaunchConfiguration('world_file')
     robot_name = LaunchConfiguration('robot_name')
     robot_sdf = LaunchConfiguration('robot_sdf')
 
-    # Map fully qualified names to relative ones so the node's namespace can be prepended.
-    # In case of the transforms (tf), currently, there doesn't seem to be a better alternative
-    # https://github.com/ros/geometry2/issues/32
-    # https://github.com/ros/robot_state_publisher/pull/30
-    # TODO(orduno) Substitute with `PushNodeRemapping`
-    #              https://github.com/ros2/launch_ros/issues/56
-    remappings = [('/tf', 'tf'),
-                  ('/tf_static', 'tf_static')]
 
     # Declare the launch arguments
     declare_namespace_cmd = DeclareLaunchArgument(
@@ -138,14 +121,10 @@ def generate_launch_description():
         default_value='False',
         description='Whether to execute gzclient)')
 
-    declare_world_cmd = DeclareLaunchArgument(
-        'world',
-        # TODO(orduno) Switch back once ROS argument passing has been fixed upstream
-        #              https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/91
-        # default_value=os.path.join(get_package_share_directory('turtlebot3_gazebo'),
-        # worlds/turtlebot3_worlds/waffle.model')
-        default_value=os.path.join(bringup_dir, 'worlds', 'world_only.model'),
-        description='Full path to world model file to load')
+    declare_world_file_cmd = DeclareLaunchArgument(
+        'world_file',
+        default_value='turtlebot3_world.world',
+        description='Gazebo world filename')
 
     declare_robot_name_cmd = DeclareLaunchArgument(
         'robot_name',
@@ -157,56 +136,28 @@ def generate_launch_description():
         default_value=os.path.join(bringup_dir, 'worlds', 'waffle.model'),
         description='Full path to robot sdf file to spawn the robot in gazebo')
 
+
     # Specify the actions
-    start_gazebo_server_cmd = ExecuteProcess(
-        condition=IfCondition(use_simulator),
-        cmd=['gzserver', '-s', 'libgazebo_ros_init.so',
-             '-s', 'libgazebo_ros_factory.so', world],
-        cwd=[launch_dir], output='screen')
 
-    start_gazebo_client_cmd = ExecuteProcess(
-        condition=IfCondition(PythonExpression(
-            [use_simulator, ' and not ', headless])),
-        cmd=['gzclient'],
-        cwd=[launch_dir], output='screen')
-
-    urdf = os.path.join(bringup_dir, 'urdf', 'turtlebot3_waffle.urdf')
-    with open(urdf, 'r') as infp:
-        robot_description = infp.read()
-
-    start_robot_state_publisher_cmd = Node(
-        condition=IfCondition(use_robot_state_pub),
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        namespace=namespace,
-        output='screen',
-        parameters=[{'use_sim_time': use_sim_time,
-                     'robot_description': robot_description}],
-        remappings=remappings)
-
-    start_gazebo_spawner_cmd = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        output='screen',
-        arguments=[
-            '-entity', robot_name,
-            '-file', robot_sdf,
-            '-robot_namespace', namespace,
-            '-x', pose['x'], '-y', pose['y'], '-z', pose['z'],
-            '-R', pose['R'], '-P', pose['P'], '-Y', pose['Y']])
-
-    rviz_cmd = IncludeLaunchDescription(
+    start_sim_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_dir, 'rviz_launch.py')),
-        condition=IfCondition(use_rviz),
+            os.path.join(local_dir, 'launch/tb3_sim_launch.py')),
         launch_arguments={'namespace': namespace,
                           'use_namespace': use_namespace,
-                          'rviz_config': rviz_config_file}.items())
+                          'world_file': world_file,
+                          'use_sim_time': use_sim_time,
+                          'robot_name': robot_name,
+                          'robot_sdf': robot_sdf,
+                          'use_simulator': use_simulator,
+                          'headless': headless,
+                          'use_robot_state_pub': use_robot_state_pub,
+                          'use_rviz': use_rviz,
+                          'rviz_config_file': rviz_config_file}.items())
 
-    bringup_cmd = IncludeLaunchDescription(
+
+    start_nav_cmd = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(launch_dir, 'bringup_launch.py')),
+            os.path.join(local_dir, 'launch/tb3_nav_launch.py')),
         launch_arguments={'namespace': namespace,
                           'use_namespace': use_namespace,
                           'slam': slam,
@@ -235,19 +186,13 @@ def generate_launch_description():
     ld.add_action(declare_use_robot_state_pub_cmd)
     ld.add_action(declare_use_rviz_cmd)
     ld.add_action(declare_simulator_cmd)
-    ld.add_action(declare_world_cmd)
+    ld.add_action(declare_world_file_cmd)
     ld.add_action(declare_robot_name_cmd)
     ld.add_action(declare_robot_sdf_cmd)
     ld.add_action(declare_use_respawn_cmd)
 
-    # Add any conditioned actions
-    ld.add_action(start_gazebo_server_cmd)
-    ld.add_action(start_gazebo_client_cmd)
-    ld.add_action(start_gazebo_spawner_cmd)
-
-    # Add the actions to launch all of the navigation nodes
-    ld.add_action(start_robot_state_publisher_cmd)
-    ld.add_action(rviz_cmd)
-    ld.add_action(bringup_cmd)
+    # Add the actions to launch all of the simulation and navigation nodes
+    ld.add_action(start_sim_cmd)
+    ld.add_action(start_nav_cmd)
 
     return ld
