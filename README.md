@@ -66,7 +66,7 @@ Oprendszer és ROS verzió: Ubuntu 22.04, ROS 2 Humble
 
 ## Felhasznált források
 
-[Open Navigation LLC: NAV2 - Getting started](https://navigation.ros.org/getting_started/index.html)
+[Open Navigation LLC: NAV2 - Getting started](https://docs.nav2.org/getting_started/index.html)
 
 [The Robotics Back-End: ROS2 Nav2 Tutorial](https://roboticsbackend.com/ros2-nav2-tutorial/)
 
